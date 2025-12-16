@@ -129,9 +129,9 @@ class TGCustomYield:
         media_session = await self.generate_media_session(client, media_msg)
 
         current_part = 1
-
         location = await self.get_location(data)
 
+        # Initial Request
         r = await media_session.send(
             raw.functions.upload.GetFile(
                 location=location,
@@ -145,24 +145,30 @@ class TGCustomYield:
                 chunk = r.bytes
                 if not chunk:
                     break
-                offset += chunk_size
+                
+                # Logic to cut the bytes correctly
                 if part_count == 1:
                     yield chunk[first_part_cut:last_part_cut]
-                    break
-                if current_part == 1:
+                elif current_part == 1:
                     yield chunk[first_part_cut:]
-                if 1 < current_part <= part_count:
+                elif current_part == part_count:
+                    yield chunk[:last_part_cut]
+                else:
                     yield chunk
 
-                r = await media_session.send(
-                    raw.functions.upload.GetFile(
-                        location=location,
-                        offset=offset,
-                        limit=chunk_size
-                    ),
-                )
-
+                # Prepare for next iteration
                 current_part += 1
+                offset += chunk_size
+
+                # Only fetch the next chunk if we still have parts left
+                if current_part <= part_count:
+                    r = await media_session.send(
+                        raw.functions.upload.GetFile(
+                            location=location,
+                            offset=offset,
+                            limit=chunk_size
+                        ),
+                    )
 
     async def download_as_bytesio(self, media_msg: Message):
         client = self.main_bot
@@ -184,17 +190,13 @@ class TGCustomYield:
 
         if isinstance(r, raw.types.upload.File):
             m_file = []
-            # m_file.name = file_name
             while True:
                 chunk = r.bytes
-
                 if not chunk:
                     break
-
                 m_file.append(chunk)
-
                 offset += limit
-
+                
                 r = await media_session.send(
                     raw.functions.upload.GetFile(
                         location=location,
@@ -202,5 +204,6 @@ class TGCustomYield:
                         limit=limit
                     )
                 )
-
-            return m_file
+            
+            # Return combined bytes instead of list
+            return b"".join(m_file)
