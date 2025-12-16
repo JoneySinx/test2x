@@ -1,8 +1,14 @@
 from pymongo import MongoClient
-from info import BOT_ID, ADMINS, DATABASE_NAME, DATA_DATABASE_URL, FILES_DATABASE_URL, SECOND_FILES_DATABASE_URL, IMDB_TEMPLATE, WELCOME_TEXT, LINK_MODE, TUTORIAL, SHORTLINK_URL, SHORTLINK_API, SHORTLINK, FILE_CAPTION, IMDB, WELCOME, SPELL_CHECK, PROTECT_CONTENT, AUTO_DELETE, IS_STREAM, VERIFY_EXPIRE
+from info import (
+    BOT_ID, ADMINS, DATABASE_NAME, DATA_DATABASE_URL, FILES_DATABASE_URL, 
+    SECOND_FILES_DATABASE_URL, IMDB_TEMPLATE, WELCOME_TEXT, LINK_MODE, 
+    TUTORIAL, SHORTLINK_URL, SHORTLINK_API, SHORTLINK, FILE_CAPTION, IMDB, 
+    WELCOME, SPELL_CHECK, PROTECT_CONTENT, AUTO_DELETE, IS_STREAM, VERIFY_EXPIRE
+)
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
+# Database Clients Setup
 files_db_client = MongoClient(FILES_DATABASE_URL)
 files_db = files_db_client[DATABASE_NAME]
 
@@ -35,11 +41,11 @@ class Database:
         'verified_time': 0,
         'verify_token': "",
         'link': "",
-        'expire_time': 0
+        'expire_time': datetime.now() # Fixed default value
     }
     
     default_prm = {
-        'expire': '',
+        'expire': datetime.now(),
         'trial': False,
         'plan': '',
         'premium': False
@@ -77,7 +83,8 @@ class Database:
     
     async def add_user(self, id, name):
         user = self.new_user(id, name)
-        self.col.insert_one(user)
+        if not await self.is_user_exist(id):
+            self.col.insert_one(user)
     
     async def is_user_exist(self, id):
         user = self.col.find_one({'id':int(id)})
@@ -124,7 +131,10 @@ class Database:
         return bool(self.req.find_one({'id': id}))
 
     def add_join_req(self, id):
-        self.req.insert_one({'id': id})
+        try:
+            self.req.insert_one({'id': id})
+        except:
+            pass
 
     def del_join_req(self):
         self.req.drop()
@@ -137,8 +147,9 @@ class Database:
         return b_users, b_chats
     
     async def add_chat(self, chat, title):
-        chat = self.new_group(chat, title)
-        self.grp.insert_one(chat)
+        chat_data = self.new_group(chat, title)
+        if not self.grp.find_one({'id': int(chat)}):
+            self.grp.insert_one(chat_data)
 
     async def get_chat(self, chat):
         chat = self.grp.find_one({'id':int(chat)})
@@ -171,13 +182,19 @@ class Database:
         user = self.col.find_one({'id':int(user_id)})
         if user:
             info = user.get('verify_status', self.default_verify)
-            try:
-                info.get('expire_time')
-            except:
-                expire_time = info.get('verified_time') + datetime.timedelta(seconds=VERIFY_EXPIRE)
-                info.append({
-                    'expire_time': expire_time
-                })
+            # FIX: Check if expire_time exists, if not calculate it properly
+            if 'expire_time' not in info:
+                # Assuming verified_time is a timestamp or datetime
+                # If verified_time is missing, default to now
+                verified_time = info.get('verified_time', datetime.now())
+                if isinstance(verified_time, (int, float)):
+                    verified_time = datetime.fromtimestamp(verified_time)
+                
+                info['expire_time'] = verified_time + timedelta(seconds=VERIFY_EXPIRE)
+                
+                # Update DB with new structure to avoid repeating this check
+                self.col.update_one({'id': int(user_id)}, {'$set': {'verify_status': info}})
+                
             return info
         return self.default_verify
         
@@ -195,7 +212,9 @@ class Database:
         return (files_db.command("dbstats"))['dataSize']
    
     async def get_second_files_db_size(self):
-        return (second_files_db.command("dbstats"))['dataSize']
+        if SECOND_FILES_DATABASE_URL:
+            return (second_files_db.command("dbstats"))['dataSize']
+        return 0
     
     async def get_data_db_size(self):
         return (data_db.command("dbstats"))['dataSize']
@@ -213,7 +232,8 @@ class Database:
     def update_plan(self, id, data):
         if not self.prm.find_one({'id': id}):
             self.prm.insert_one({'id': id, 'status': data})
-        self.prm.update_one({'id': id}, {'$set': {'status': data}})
+        else:
+            self.prm.update_one({'id': id}, {'$set': {'status': data}})
 
     def get_premium_count(self):
         return self.prm.count_documents({'status.premium': True})
@@ -239,10 +259,13 @@ class Database:
     def update_bot_sttgs(self, var, val):
         if not self.stg.find_one({'id': BOT_ID}):
             self.stg.insert_one({'id': BOT_ID, var: val})
-        self.stg.update_one({'id': BOT_ID}, {'$set': {var: val}})
+        else:
+            self.stg.update_one({'id': BOT_ID}, {'$set': {var: val}})
 
     def get_bot_sttgs(self):
-        return self.stg.find_one({'id': BOT_ID})
-
+        stg = self.stg.find_one({'id': BOT_ID})
+        if not stg:
+            return {}
+        return stg
 
 db = Database()
