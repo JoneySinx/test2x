@@ -9,7 +9,6 @@ from database.users_chats_db import db
 from utils import temp, get_settings
 from Script import script
 
-
 @Client.on_chat_member_updated()
 async def welcome(bot, message):
     if message.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
@@ -21,15 +20,21 @@ async def welcome(bot, message):
                 InlineKeyboardButton('ᴜᴘᴅᴀᴛᴇ', url=UPDATES_LINK),
                 InlineKeyboardButton('ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
             ]]
-            reply_markup=InlineKeyboardMarkup(buttons)
+            reply_markup = InlineKeyboardMarkup(buttons)
             user = message.from_user.mention if message.from_user else "Dear"
-            await bot.send_photo(chat_id=message.chat.id, photo=random.choice(PICS), caption=f"👋 Hello {user},\n\nThank you for adding me to the <b>'{message.chat.title}'</b> group, Don't forget to make me admin. If you want to know more ask the support group. 😘</b>", reply_markup=reply_markup)
+            await bot.send_photo(
+                chat_id=message.chat.id, 
+                photo=random.choice(PICS), 
+                caption=f"👋 Hello {user},\n\nThank you for adding me to the <b>'{message.chat.title}'</b> group, Don't forget to make me admin. If you want to know more ask the support group. 😘", 
+                reply_markup=reply_markup
+            )
             if not await db.get_chat(message.chat.id):
                 total = await bot.get_chat_members_count(message.chat.id)
                 username = f'@{message.chat.username}' if message.chat.username else 'Private'
                 await bot.send_message(LOG_CHANNEL, script.NEW_GROUP_TXT.format(message.chat.title, message.chat.id, username, total))       
                 await db.add_chat(message.chat.id, message.chat.title)
             return
+        
         settings = await get_settings(message.chat.id)
         if settings["welcome"]:
             WELCOME = settings['welcome_text']
@@ -66,7 +71,7 @@ async def leave_a_chat(bot, message):
         buttons = [[
             InlineKeyboardButton('Support Group', url=SUPPORT_LINK)
         ]]
-        reply_markup=InlineKeyboardMarkup(buttons)
+        reply_markup = InlineKeyboardMarkup(buttons)
         await bot.send_message(
             chat_id=chat,
             text=f'Hello Friends,\nMy owner has told me to leave from group so i go! If you need add me again contact my support group.\nReason - <code>{reason}</code>',
@@ -104,7 +109,7 @@ async def disable_chat(bot, message):
         buttons = [[
             InlineKeyboardButton('Support Group', url=SUPPORT_LINK)
         ]]
-        reply_markup=InlineKeyboardMarkup(buttons)
+        reply_markup = InlineKeyboardMarkup(buttons)
         await bot.send_message(
             chat_id=chat_, 
             text=f'Hello Friends,\nMy owner has told me to leave from group so i go! If you need add me again contact my support group.\nReason - <code>{reason}</code>',
@@ -122,7 +127,7 @@ async def re_enable_chat(bot, message):
         chat_ = int(chat)
     except:
         return await message.reply('Give me a valid chat ID')
-    sts = await db.get_chat(int(chat))
+    sts = await db.get_chat(int(chat_))
     if not sts:
         return await message.reply("Chat not found in database")
     if not sts.get('is_disabled'):
