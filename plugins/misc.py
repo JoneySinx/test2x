@@ -11,9 +11,11 @@ import os
 @Client.on_message(filters.command('id'))
 async def showid(client, message):
     chat_type = message.chat.type
-    replied_to_msg = bool(message.reply_to_message)
-    if replied_to_msg:
-        return await message.reply_text(f"""The forwarded message channel {replied_to_msg.chat.title}'s id is, <code>{replied_to_msg.chat.id}</code>.""")
+    
+    if message.reply_to_message:
+        # यहाँ पहले गलती थी, जिसे ठीक किया गया है
+        return await message.reply_text(f"The forwarded message channel {message.reply_to_message.chat.title}'s id is, <code>{message.reply_to_message.chat.id}</code>.")
+    
     if chat_type == enums.ChatType.PRIVATE:
         await message.reply_text(f'★ User ID: <code>{message.from_user.id}</code>')
 
@@ -26,7 +28,7 @@ async def showid(client, message):
 
 @Client.on_message(filters.command('speedtest') & filters.user(ADMINS))
 async def speedtest(client, message):
-    #from - https://github.com/weebzone/WZML-X/blob/master/bot/modules/speedtest.py
+    # from - https://github.com/weebzone/WZML-X/blob/master/bot/modules/speedtest.py
     msg = await message.reply_text("Initiating Speedtest...")
     try:
         speed = Speedtest()
@@ -34,11 +36,13 @@ async def speedtest(client, message):
     except (ConfigRetrievalError, SpeedtestBestServerFailure):
         await msg.edit("Can't connect to Server at the Moment, Try Again Later !")
         return
+    
     speed.download()
     speed.upload()
     speed.results.share()
     result = speed.results.dict()
     photo = result['share']
+    
     text = f'''
 ➲ <b>SPEEDTEST INFO</b>
 ┠ <b>Upload:</b> <code>{get_size(result['upload'])}/s</code>
@@ -96,6 +100,7 @@ async def who_is(client, message):
     message_out_str += f"<b>➲Username:</b> {username}\n"
     message_out_str += f"<b>➲Last Online:</b> {last_online(from_user)}\n"
     message_out_str += f"<b>➲User 𝖫𝗂𝗇𝗄:</b> <a href='tg://user?id={from_user.id}'><b>Click Here</b></a>\n"
+    
     if message.chat.type in [enums.ChatType.SUPERGROUP, enums.ChatType.GROUP]:
         try:
             chat_member_p = await message.chat.get_member(from_user.id)
@@ -107,6 +112,7 @@ async def who_is(client, message):
             )
         except UserNotParticipant:
             pass
+            
     chat_photo = from_user.photo
     if chat_photo:
         local_user_photo = await client.download_media(
@@ -130,7 +136,6 @@ async def who_is(client, message):
     await status_message.delete()
 
 
-
 def last_online(from_user):
     time = ""
     if from_user.is_bot:
@@ -148,4 +153,3 @@ def last_online(from_user):
     elif from_user.status == enums.UserStatus.OFFLINE:
         time += from_user.last_online_date.strftime("%a, %d %b %Y, %H:%M:%S")
     return time
-
