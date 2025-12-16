@@ -20,45 +20,65 @@ async def watch_handler(request):
         message_id = int(request.match_info['message_id'])
         return web.Response(text=await media_watch(message_id), content_type='text/html')
     except Exception as e:
-        return web.Response(text="<h1>Something went wrong</h1>", content_type='text/html')
+        return web.Response(text=f"<h1>Something went wrong: {e}</h1>", content_type='text/html')
 
 @routes.get("/download/{message_id}")
 async def download_handler(request):
     try:
         message_id = int(request.match_info['message_id'])
         return await media_download(request, message_id)
-    except:
-        return web.Response(text="<h1>Something went wrong</h1>", content_type='text/html')
+    except Exception as e:
+        return web.Response(text=f"<h1>Something went wrong: {e}</h1>", content_type='text/html')
         
 
 async def media_download(request, message_id: int):
-    range_header = request.headers.get('Range', 0)
-    media_msg = await temp.BOT.get_messages(BIN_CHANNEL, message_id)
-    media = getattr(media_msg, media_msg.media.value, None)
-    file_size = media.file_size
+    # Fetch Message from Channel
+    try:
+        media_msg = await temp.BOT.get_messages(BIN_CHANNEL, message_id)
+    except Exception:
+        return web.Response(status=404, text="404: File not found or Bot removed from channel")
 
+    if not media_msg:
+        return web.Response(status=404, text="404: File not found")
+
+    media = getattr(media_msg, media_msg.media.value, None)
+    if not media:
+        return web.Response(status=404, text="404: No Media found in this message")
+
+    file_size = media.file_size
+    range_header = request.headers.get('Range')
+
+    # Calculate Byte Ranges
     if range_header:
         from_bytes, until_bytes = range_header.replace('bytes=', '').split('-')
         from_bytes = int(from_bytes)
         until_bytes = int(until_bytes) if until_bytes else file_size - 1
     else:
-        from_bytes = request.http_range.start or 0
-        until_bytes = request.http_range.stop or file_size - 1
+        from_bytes = 0
+        until_bytes = file_size - 1
 
-    req_length = until_bytes - from_bytes
+    # Fix: Byte ranges are inclusive, so add 1
+    req_length = until_bytes - from_bytes + 1
 
     new_chunk_size = await chunk_size(req_length)
     offset = await offset_fix(from_bytes, new_chunk_size)
     first_part_cut = from_bytes - offset
     last_part_cut = (until_bytes % new_chunk_size) + 1
     part_count = math.ceil(req_length / new_chunk_size)
-    body = TGCustomYield().yield_file(media_msg, offset, first_part_cut, last_part_cut, part_count,
-                                      new_chunk_size)
+    
+    body = TGCustomYield().yield_file(media_msg, offset, first_part_cut, last_part_cut, part_count, new_chunk_size)
 
-    file_name = media.file_name if media.file_name \
-        else f"{secrets.token_hex(2)}.jpeg"
-    mime_type = media.mime_type if media.mime_type \
-        else f"{mimetypes.guess_type(file_name)}"
+    # Filename Handling
+    if hasattr(media, 'file_name') and media.file_name:
+        file_name = media.file_name
+    else:
+        file_name = f"{secrets.token_hex(2)}.file"
+
+    # Fix: Correct MIME Type extraction from Tuple
+    mime_type = media.mime_type
+    if not mime_type:
+        guessed = mimetypes.guess_type(file_name)[0] 
+        mime_type = guessed if guessed else "application/octet-stream"
 
     return_resp = web.Response(
         status=206 if range_header else 200,
