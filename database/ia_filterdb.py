@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 client = MongoClient(FILES_DATABASE_URL)
 db = client[DATABASE_NAME]
 collection = db[COLLECTION_NAME]
+
+# Indexing
 try:
     collection.create_index([("file_name", TEXT)])
 except OperationFailure as e:
@@ -27,24 +29,37 @@ if SECOND_FILES_DATABASE_URL:
     second_client = MongoClient(SECOND_FILES_DATABASE_URL)
     second_db = second_client[DATABASE_NAME]
     second_collection = second_db[COLLECTION_NAME]
-    second_collection.create_index([("file_name", TEXT)])
-
+    try:
+        second_collection.create_index([("file_name", TEXT)])
+    except:
+        pass
 
 def second_db_count_documents():
-     return second_collection.count_documents({})
+    if SECOND_FILES_DATABASE_URL:
+        return second_collection.count_documents({})
+    return 0
 
 def db_count_documents():
-     return collection.count_documents({})
+    return collection.count_documents({})
 
 
 async def save_file(media):
     """Save file in database"""
-    file_id = unpack_new_file_id(media.file_id)
-    file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
-    file_caption = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.caption))
     
+    # 1. Unique ID logic
+    file_id = unpack_new_file_id(media.file_id)
+    
+    # 2. Name Cleaning
+    file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
+    
+    # 3. Caption Handling (Fix: Handle None)
+    caption = media.caption if media.caption else ""
+    file_caption = re.sub(r"@\w+|(_|\-|\.|\+)", " ", caption)
+    
+    # 4. Document Structure (Fix: Added 'file_id' field)
     document = {
-        '_id': file_id,
+        '_id': file_id,             # Unique Hash for deduplication
+        'file_id': media.file_id,   # ACTUAL TELEGRAM ID (Required to send file)
         'file_name': file_name,
         'file_size': media.file_size,
         'caption': file_caption
@@ -90,14 +105,16 @@ async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
         filter = {'file_name': regex}
 
     cursor = collection.find(filter)
-    results = [doc for doc in cursor]
+    # Using list slicing directly on cursor is risky if result is large, but okay for pagination logic here
+    results = list(cursor)
 
     if SECOND_FILES_DATABASE_URL:
         cursor2 = second_collection.find(filter)
-        results.extend([doc for doc in cursor2])
+        results.extend(list(cursor2))
 
+    # Language Filter Logic
     if lang:
-        lang_files = [file for file in results if lang in file['file_name'].lower()]
+        lang_files = [file for file in results if lang.lower() in file['file_name'].lower()]
         files = lang_files[offset:][:max_results]
         total_results = len(lang_files)
         next_offset = offset + max_results
@@ -160,6 +177,7 @@ def encode_file_id(s: bytes) -> str:
     return base64.urlsafe_b64encode(r).decode().rstrip("=")
 
 def unpack_new_file_id(new_file_id):
+    """Return file_id, file_ref"""
     decoded = FileId.decode(new_file_id)
     file_id = encode_file_id(
         pack(
