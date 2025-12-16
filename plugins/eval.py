@@ -9,22 +9,29 @@ from info import ADMINS
 @Client.on_message(filters.command("eval") & filters.user(ADMINS))
 async def executor(client, message):
     try:
+        # कोड को अलग किया
         code = message.text.split(" ", 1)[1]
-    except:
-        return await message.reply('Command Incomplete!\nUsage: /eval your_python_code')
+    except IndexError:
+        return await message.reply('Command Incomplete!\nUsage: /eval print("hello")')
+        
     old_stderr = sys.stderr
     old_stdout = sys.stdout
     redirected_output = sys.stdout = StringIO()
     redirected_error = sys.stderr = StringIO()
     stdout, stderr, exc = None, None, None
+    returned = None
+    
     try:
-        await aexec(code, client, message)
-    except:
+        # aexec से return value भी अब कैप्चर होगी
+        returned = await aexec(code, client, message)
+    except Exception:
         exc = traceback.format_exc()
+        
     stdout = redirected_output.getvalue()
     stderr = redirected_error.getvalue()
     sys.stdout = old_stdout
     sys.stderr = old_stderr
+    
     evaluation = ""
     if exc:
         evaluation = exc
@@ -34,15 +41,21 @@ async def executor(client, message):
         evaluation = stdout
     else:
         evaluation = "Success!"
-    final_output = f"Output:\n\n<code>{evaluation}</code>"
+        
+    # अगर कोड ने कुछ return किया है तो उसे भी दिखाएं
+    if returned:
+        evaluation += f"\n\nReturned: {returned}"
+
+    final_output = f"<b>Output:</b>\n<pre>{evaluation}</pre>"
+    
     try:
         await message.reply(final_output)
     except MessageTooLong:
-        with open('eval.txt', 'w+') as outfile:
-            outfile.write(final_output)
-        await message.reply_document('eval.txt')
+        # फाइल राइट करते समय utf-8 का उपयोग करें
+        with open('eval.txt', 'w+', encoding='utf-8') as outfile:
+            outfile.write(str(evaluation))
+        await message.reply_document('eval.txt', caption="Evaluation Result")
         os.remove('eval.txt')
-
 
 async def aexec(code, client, message):
     exec(
@@ -50,4 +63,3 @@ async def aexec(code, client, message):
         + "".join(f"\n {a}" for a in code.split("\n"))
     )
     return await locals()["__aexec"](client, message)
-
