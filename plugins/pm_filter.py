@@ -1,18 +1,36 @@
 import asyncio
 import re
+import math
+import os
+import qrcode
+import random
 from time import time as time_now
-import math, os
-import qrcode, random
+from datetime import datetime, timedelta
+
+from hydrogram import Client, filters, enums
+from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
 from hydrogram.errors import ListenerTimeout
 from hydrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
+
+# आपके अन्य फाइल्स से इम्पोर्ट्स
 from Script import script
-from datetime import datetime, timedelta
-from info import IS_PREMIUM, PICS, TUTORIAL, SHORTLINK_API, SHORTLINK_URL, RECEIPT_SEND_USERNAME, UPI_ID, UPI_NAME, PRE_DAY_AMOUNT, SECOND_FILES_DATABASE_URL, ADMINS, URL, MAX_BTN, BIN_CHANNEL, IS_STREAM, DELETE_TIME, FILMS_LINK, LOG_CHANNEL, SUPPORT_GROUP, SUPPORT_LINK, UPDATES_LINK, LANGUAGES, QUALITY
-from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
-from hydrogram import Client, filters, enums
-from utils import is_premium, get_size, is_subscribed, is_check_admin, get_wish, get_shortlink, get_readable_time, get_poster, temp, get_settings, save_group_settings
+from info import (
+    IS_PREMIUM, PICS, TUTORIAL, SHORTLINK_API, SHORTLINK_URL, 
+    RECEIPT_SEND_USERNAME, UPI_ID, UPI_NAME, PRE_DAY_AMOUNT, 
+    SECOND_FILES_DATABASE_URL, ADMINS, URL, MAX_BTN, BIN_CHANNEL, 
+    IS_STREAM, DELETE_TIME, FILMS_LINK, LOG_CHANNEL, SUPPORT_GROUP, 
+    SUPPORT_LINK, UPDATES_LINK, LANGUAGES, QUALITY
+)
+from utils import (
+    is_premium, get_size, is_subscribed, is_check_admin, get_wish, 
+    get_shortlink, get_readable_time, get_poster, temp, get_settings, 
+    save_group_settings
+)
 from database.users_chats_db import db
-from database.ia_filterdb import get_search_results,delete_files, db_count_documents, second_db_count_documents
+from database.ia_filterdb import (
+    get_search_results, delete_files, db_count_documents, 
+    second_db_count_documents
+)
 from plugins.commands import get_grp_stg
 
 BUTTONS = {}
@@ -37,17 +55,17 @@ async def pm_search(client, message):
         ],[
             InlineKeyboardButton('🤑 Buy Premium', url=f"https://t.me/{temp.U_NAME}?start=premium")
             ]]
-        reply_markup=InlineKeyboardMarkup(btn)
+        reply_markup = InlineKeyboardMarkup(btn)
         if int(total) != 0:
             await message.reply_text(f'<b><i>🤗 ᴛᴏᴛᴀʟ <code>{total}</code> ʀᴇꜱᴜʟᴛꜱ ꜰᴏᴜɴᴅ ɪɴ ᴛʜɪꜱ ɢʀᴏᴜᴘ 👇</i></b>\n\nor buy premium subscription', reply_markup=reply_markup)
 
-            
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def group_search(client, message):
     chat_id = message.chat.id
     user_id = message.from_user.id if message and message.from_user else 0
     stg = db.get_bot_sttgs()
+    
     if stg.get('AUTO_FILTER'):
         if not user_id:
             await message.reply("I'm not working for anonymous admin!")
@@ -147,9 +165,8 @@ async def next_page(bot, query):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f"file#{file['_id']}")
-        ]
-            for file in files
-        ]
+        ] for file in files]
+
     if settings['shortlink'] and not await is_premium(query.from_user.id, bot):
         btn.insert(0,
             [InlineKeyboardButton("📰 ʟᴀɴɢᴜᴀɢᴇs", callback_data=f"languages#{key}#{req}#{offset}"),
@@ -250,9 +267,8 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f"file#{file['_id']}")
-        ]
-            for file in files
-        ]
+        ] for file in files]
+
     if settings['shortlink'] and not await is_premium(query.from_user.id, client):
         btn.insert(1,
             [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}')),
@@ -304,9 +320,8 @@ async def lang_next_page(bot, query):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f'file#{file["_id"]}')
-        ]
-            for file in files
-        ]
+        ] for file in files]
+
     if settings['shortlink'] and not await is_premium(query.from_user.id, bot):
         btn.insert(1,
             [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}')),
@@ -367,9 +382,8 @@ async def quality_search(client: Client, query: CallbackQuery):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f'file#{file["_id"]}')
-        ]
-            for file in files
-        ]
+        ] for file in files]
+    
     if settings['shortlink'] and not await is_premium(query.from_user.id, client):
         btn.insert(0,
             [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))]
@@ -418,9 +432,8 @@ async def quality_next_page(bot, query):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f'file#{file["_id"]}')
-        ]
-            for file in files
-        ]
+        ] for file in files]
+        
     if settings['shortlink'] and not await is_premium(query.from_user.id, bot):
         btn.insert(0,
             [InlineKeyboardButton("♻️ sᴇɴᴅ ᴀʟʟ ♻️", url=await get_shortlink(settings['url'], settings['api'], f'https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}'))]
@@ -597,7 +610,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
         else:
             await q.delete()
             await query.message.reply(f"Not valid photo, send your receipt to: {RECEIPT_SEND_USERNAME}")
-
 
 
     elif query.data == "start":
@@ -1068,7 +1080,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.message.reply('Nothing to kick deleted accounts.')
 
 
-
 async def auto_filter(client, msg, s, spoll=False):
     if not spoll:
         message = msg
@@ -1085,11 +1096,13 @@ async def auto_filter(client, msg, s, spoll=False):
         settings = await get_settings(msg.message.chat.id)
         message = msg.message.reply_to_message  # msg will be callback query
         search, files, offset, total_results = spoll
+    
     req = message.from_user.id if message and message.from_user else 0
     key = f"{message.chat.id}-{message.id}"
     temp.FILES[key] = files
     BUTTONS[key] = search
     files_link = ""
+    
     if settings['links']:
         btn = []
         for file_num, file in enumerate(files, start=1):
@@ -1097,9 +1110,8 @@ async def auto_filter(client, msg, s, spoll=False):
     else:
         btn = [[
             InlineKeyboardButton(text=f"{get_size(file['file_size'])} - {file['file_name']}", callback_data=f'file#{file["_id"]}')
-        ]
-            for file in files
-        ]   
+        ] for file in files]
+        
     if offset != "":
         if settings['shortlink'] and not await is_premium(message.from_user.id, client):
             btn.insert(0,
@@ -1133,6 +1145,7 @@ async def auto_filter(client, msg, s, spoll=False):
     btn.append(
         [InlineKeyboardButton('🤑 Buy Premium', url=f"https://t.me/{temp.U_NAME}?start=premium")]
     )
+    
     imdb = await get_poster(search, file=(files[0])['file_name']) if settings["imdb"] else None
     TEMPLATE = settings['template']
     if imdb:
@@ -1171,6 +1184,7 @@ async def auto_filter(client, msg, s, spoll=False):
         cap = f"<b>💭 ʜᴇʏ {message.from_user.mention},\n♻️ ʜᴇʀᴇ ɪ ꜰᴏᴜɴᴅ ꜰᴏʀ ʏᴏᴜʀ sᴇᴀʀᴄʜ {search}...</b>"
     CAP[key] = cap
     del_msg = f"\n\n<b>⚠️ ᴛʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏ ᴅᴇʟᴇᴛᴇ ᴀꜰᴛᴇʀ <code>{get_readable_time(DELETE_TIME)}</code> ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛ ɪssᴜᴇs</b>" if settings["auto_delete"] else ''
+    
     if imdb and imdb.get('poster'):
         await s.delete()
         try:
@@ -1244,9 +1258,8 @@ async def advantage_spell_chok(message, s):
     user = message.from_user.id if message.from_user else 0
     buttons = [[
         InlineKeyboardButton(text=movie.get('title'), callback_data=f"spolling#{movie.movieID}#{user}")
-    ]
-        for movie in movies
-    ]
+    ] for movie in movies]
+    
     buttons.append(
         [InlineKeyboardButton("🚫 ᴄʟᴏsᴇ 🚫", callback_data="close_data")]
     )
@@ -1257,4 +1270,3 @@ async def advantage_spell_chok(message, s):
         await message.delete()
     except:
         pass
-
