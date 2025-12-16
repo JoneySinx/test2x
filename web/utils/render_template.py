@@ -2,10 +2,11 @@ from info import BIN_CHANNEL, URL
 from utils import temp
 from web.utils.custom_dl import TGCustomYield
 import urllib.parse
-import aiofiles, html
+import aiofiles
+import html
+import logging
 
-
-# styles from deepseek.com
+# styles from deepseek.com (Optimized Template)
 watch_tmplt = """
 <!DOCTYPE html>
 <html lang="en">
@@ -29,11 +30,7 @@ watch_tmplt = """
             --border-color: #334155;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Inter', sans-serif;
@@ -108,9 +105,7 @@ watch_tmplt = """
             transition: background-color 0.2s;
         }
         
-        .action-btn:hover {
-            background-color: var(--primary-hover);
-        }
+        .action-btn:hover { background-color: var(--primary-hover); }
         
         footer {
             padding: 1rem;
@@ -122,42 +117,18 @@ watch_tmplt = """
         }
         
         @media (max-width: 768px) {
-            #file-name {
-                font-size: 0.9rem;
-                max-width: 90%;
-            }
-            
-            .container {
-                padding: 1rem;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
+            #file-name { font-size: 0.9rem; max-width: 90%; }
+            .container { padding: 1rem; }
+            .action-buttons { flex-direction: column; gap: 0.5rem; }
         }
         
         /* Plyr overrides */
-        .plyr--video .plyr__control--overlaid {
-            background: var(--primary);
-        }
-        
+        .plyr--video .plyr__control--overlaid { background: var(--primary); }
         .plyr--video .plyr__control:hover, 
-        .plyr--video .plyr__control[aria-expanded="true"] {
-            background: var(--primary-hover);
-        }
-        
-        .plyr__control.plyr__tab-focus {
-            box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.5);
-        }
-        
-        .plyr--full-ui input[type="range"] {
-            color: var(--primary);
-        }
-        
-        .plyr__menu__container .plyr__control[role="menuitemradio"][aria-checked="true"]::before {
-            background: var(--primary);
-        }
+        .plyr--video .plyr__control[aria-expanded="true"] { background: var(--primary-hover); }
+        .plyr__control.plyr__tab-focus { box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.5); }
+        .plyr--full-ui input[type="range"] { color: var(--primary); }
+        .plyr__menu__container .plyr__control[role="menuitemradio"][aria-checked="true"]::before { background: var(--primary); }
     </style>
 </head>
 <body class="dark">
@@ -167,20 +138,16 @@ watch_tmplt = """
 
     <div class="container">
         <div class="player-container">
-            <video src="{src}" class="player" playsinline controls></video>
+            <video src="{src}" class="player" playsinline controls>
+                <source src="{src}" type="video/mp4" />
+            </video>
             <div class="action-buttons">
                 <a href="{src}" class="action-btn" download>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     Download
                 </a>
                 <a href="vlc://{src}" class="action-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                     Play in VLC
                 </a>
             </div>
@@ -194,22 +161,8 @@ watch_tmplt = """
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize Plyr player
             const player = new Plyr('.player', {
-                controls: [
-                    'play-large',
-                    'play',
-                    'progress',
-                    'current-time',
-                    'duration',
-                    'mute',
-                    'volume',
-                    'captions',
-                    'settings',
-                    'pip',
-                    'airplay',
-                    'fullscreen'
-                ],
+                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
                 settings: ['captions', 'quality', 'speed'],
                 hideControls: false
             });
@@ -220,13 +173,38 @@ watch_tmplt = """
 """
 
 async def media_watch(message_id):
-    media_msg = await temp.BOT.get_messages(BIN_CHANNEL, message_id)
-    media = getattr(media_msg, media_msg.media.value, None)
-    src = urllib.parse.urljoin(URL, f'download/{message_id}')
-    tag = media.mime_type.split('/')[0].strip()
-    if tag == 'video':
-        heading = html.escape(f'Watch - {media.file_name}')
-        html_ = watch_tmplt.replace('{heading}', heading).replace('{file_name}', media.file_name).replace('{src}', src)
-    else:
-        html_ = '<h1>This is not streamable file</h1>'
-    return html_
+    try:
+        # Fetch Message from Bin Channel
+        media_msg = await temp.BOT.get_messages(BIN_CHANNEL, message_id)
+        
+        # Check if message exists and has media
+        if not media_msg or not media_msg.media:
+            return "<h1>404 - File Not Found (Message deleted or not found)</h1>"
+
+        media = getattr(media_msg, media_msg.media.value, None)
+        if not media:
+            return "<h1>404 - File Not Found (No media in message)</h1>"
+
+        # Safe Mime Type Check
+        mime_type = getattr(media, 'mime_type', 'application/octet-stream') or 'application/octet-stream'
+        tag = mime_type.split('/')[0].strip()
+
+        if tag == 'video':
+            # Safe File Name with HTML Escaping
+            file_name = getattr(media, 'file_name', 'Unknown Video')
+            safe_file_name = html.escape(file_name)
+            
+            # Construct URL
+            src = urllib.parse.urljoin(URL, f'download/{message_id}')
+            
+            # Replace placeholders
+            html_content = watch_tmplt.replace('{heading}', safe_file_name)\
+                                      .replace('{file_name}', safe_file_name)\
+                                      .replace('{src}', src)
+            return html_content
+        else:
+            return f'<h1>This file format ({mime_type}) is not streamable via this player.</h1>'
+            
+    except Exception as e:
+        logging.error(f"Error in media_watch: {e}")
+        return f"<h1>Error: Something went wrong while fetching the file.</h1>"
