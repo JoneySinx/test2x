@@ -52,11 +52,11 @@ async def save_file(media):
     # 2. Name Cleaning
     file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
     
-    # 3. Caption Handling (Fix: Handle None)
+    # 3. Caption Handling
     caption = media.caption if media.caption else ""
     file_caption = re.sub(r"@\w+|(_|\-|\.|\+)", " ", caption)
     
-    # 4. Document Structure (Fix: Added 'file_id' field)
+    # 4. Document Structure
     document = {
         '_id': file_id,             # Unique Hash for deduplication
         'file_id': media.file_id,   # ACTUAL TELEGRAM ID (Required to send file)
@@ -105,7 +105,6 @@ async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
         filter = {'file_name': regex}
 
     cursor = collection.find(filter)
-    # Using list slicing directly on cursor is risky if result is large, but okay for pagination logic here
     results = list(cursor)
 
     if SECOND_FILES_DATABASE_URL:
@@ -130,31 +129,37 @@ async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
     return files, next_offset, total_results
 
 async def delete_files(query):
-    query = query.strip()
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
+    """Delete files based on a search query"""
+    query = str(query).strip()
     
+    # Updated Regex Logic: Simple 'contains' search
     try:
-        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
+        # re.escape makes sure special chars like '.' don't act as regex commands
+        regex = re.compile(re.escape(query), re.IGNORECASE)
     except:
-        regex = query
+        return 0
         
     filter = {'file_name': regex}
     
     result1 = collection.delete_many(filter)
     
-    result2 = None
+    total_deleted = result1.deleted_count
+    
     if SECOND_FILES_DATABASE_URL:
         result2 = second_collection.delete_many(filter)
-    
-    total_deleted = result1.deleted_count
-    if result2:
         total_deleted += result2.deleted_count
     
+    return total_deleted
+
+async def delete_all_files():
+    """Delete ALL files from database (for /delete_all command)"""
+    result1 = collection.delete_many({})
+    total_deleted = result1.deleted_count
+    
+    if SECOND_FILES_DATABASE_URL:
+        result2 = second_collection.delete_many({})
+        total_deleted += result2.deleted_count
+        
     return total_deleted
 
 async def get_file_details(query):
@@ -189,3 +194,4 @@ def unpack_new_file_id(new_file_id):
         )
     )
     return file_id
+
