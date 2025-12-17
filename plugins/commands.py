@@ -4,11 +4,11 @@ import string
 import asyncio
 from time import time as time_now
 from time import monotonic
-import datetime
 from datetime import datetime, timedelta
 
 from hydrogram import Client, filters, enums
 from hydrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from hydrogram.errors import MediaEmpty, BadRequest, FloodWait
 
 # आपके प्रोजेक्ट के अन्य फाइल्स से इम्पोर्ट्स
 from Script import script
@@ -186,14 +186,20 @@ async def start(client, message):
                     InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
                 ]]
 
-            msg = await client.send_cached_media(
-                chat_id=message.from_user.id,
-                file_id=file['_id'],
-                caption=f_caption,
-                protect_content=False,
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-            file_ids.append(msg.id)
+            try:
+                msg = await client.send_cached_media(
+                    chat_id=message.from_user.id,
+                    file_id=file['_id'],
+                    caption=f_caption,
+                    protect_content=False,
+                    reply_markup=InlineKeyboardMarkup(btn)
+                )
+                file_ids.append(msg.id)
+            except (MediaEmpty, BadRequest):
+                continue # Skip invalid files
+            except Exception as e:
+                print(f"Error sending file in ALL loop: {e}")
+                continue
 
         time = get_readable_time(PM_FILE_DELETE_TIME)
         vp = await message.reply(f"Nᴏᴛᴇ: Tʜɪs ғɪʟᴇs ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇs ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
@@ -244,13 +250,22 @@ async def start(client, message):
         ],[
             InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
         ]]
-    vp = await client.send_cached_media(
-        chat_id=message.from_user.id,
-        file_id=file_id,
-        caption=f_caption,
-        protect_content=False,
-        reply_markup=InlineKeyboardMarkup(btn)
-    )
+    
+    try:
+        vp = await client.send_cached_media(
+            chat_id=message.from_user.id,
+            file_id=file_id,
+            caption=f_caption,
+            protect_content=False,
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
+    except (MediaEmpty, BadRequest):
+        await message.reply_text("⚠️ This file has been deleted from Telegram servers.")
+        return
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+        return
+
     time = get_readable_time(PM_FILE_DELETE_TIME)
     msg = await vp.reply(f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
     await asyncio.sleep(PM_FILE_DELETE_TIME)
@@ -604,3 +619,4 @@ async def off_pm_search(bot, message):
 async def on_pm_search(bot, message):
     db.update_bot_sttgs('PM_SEARCH', True)
     await message.reply('Successfully turned on pm search for all users')
+
