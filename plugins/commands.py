@@ -10,9 +10,9 @@ from hydrogram import Client, filters, enums
 from hydrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from hydrogram.errors import MediaEmpty, BadRequest, FloodWait
 
-# आपके प्रोजेक्ट के अन्य फाइल्स से इम्पोर्ट्स
 from Script import script
-from database.ia_filterdb import db_count_documents, second_db_count_documents, get_file_details, delete_files
+# MISTAKE FIXED: Added delete_all_files to import
+from database.ia_filterdb import db_count_documents, second_db_count_documents, get_file_details, delete_files, delete_all_files
 from database.users_chats_db import db
 from info import (
     IS_PREMIUM, PRE_DAY_AMOUNT, RECEIPT_SEND_USERNAME, URL, BIN_CHANNEL, 
@@ -50,7 +50,7 @@ async def start(client, message):
     try:
         await message.react(emoji=random.choice(REACTIONS), big=True)
     except:
-        await message.react(emoji="⚡️", big=True)
+        pass
 
     d = await client.send_sticker(message.chat.id, random.choice(STICKERS))
     asyncio.create_task(del_stk(d))
@@ -62,7 +62,6 @@ async def start(client, message):
     verify_status = await get_verify_status(message.from_user.id)
     if verify_status['is_verified'] and datetime.now() > verify_status['expire_time']:
         await update_verify_status(message.from_user.id, is_verified=False)
-
 
     if (len(message.command) != 2) or (len(message.command) == 2 and message.command[1] == 'start'):
         buttons = [[
@@ -98,7 +97,6 @@ async def start(client, message):
         btn = await get_grp_stg(int(group_id))
         chat = await client.get_chat(int(group_id))
         return await message.reply(f"Change your settings for <b>'{chat.title}'</b> as your wish. ⚙", reply_markup=InlineKeyboardMarkup(btn))
-
 
     if mc.startswith('inline_fsub'):
         btn = await is_subscribed(client, message)
@@ -169,9 +167,13 @@ async def start(client, message):
                 file_size=get_size(file['file_size']),
                 file_caption=file['caption']
             )      
+            
+            # Using real file_id for streaming and downloading
+            real_file_id = file.get('file_id') or file['_id']
+
             if IS_STREAM:
                 btn = [[
-                    InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{file['_id']}")
+                    InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
                 ],[
                     InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
                     InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
@@ -189,16 +191,16 @@ async def start(client, message):
             try:
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
-                    file_id=file['_id'],
+                    file_id=real_file_id,
                     caption=f_caption,
                     protect_content=False,
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
                 file_ids.append(msg.id)
             except (MediaEmpty, BadRequest):
-                continue # Skip invalid files
+                continue
             except Exception as e:
-                print(f"Error sending file in ALL loop: {e}")
+                print(f"Error sending file: {e}")
                 continue
 
         time = get_readable_time(PM_FILE_DELETE_TIME)
@@ -212,14 +214,18 @@ async def start(client, message):
         await vp.edit("Tʜᴇ ғɪʟᴇ ʜᴀs ʙᴇᴇɴ ɢᴏɴᴇ ! Cʟɪᴄᴋ ɢɪᴠᴇɴ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪᴛ ᴀɢᴀɪɴ.", reply_markup=InlineKeyboardMarkup(buttons))
         return
 
-    type_, grp_id, file_id = mc.split("_", 2)
-    files_ = await get_file_details(file_id)
+    type_, grp_id, db_key = mc.split("_", 2)
+    files_ = await get_file_details(db_key)
     if not files_:
         return await message.reply('No Such File Exist!')
     files = files_
     settings = await get_settings(int(grp_id))
+    
+    # Correct file ID handling
+    real_file_id = files.get('file_id') or files['_id']
+
     if type_ != 'shortlink' and settings['shortlink'] and not await is_premium(message.from_user.id, client):
-        link = await get_shortlink(settings['url'], settings['api'], f"https://t.me/{temp.U_NAME}?start=shortlink_{grp_id}_{file_id}")
+        link = await get_shortlink(settings['url'], settings['api'], f"https://t.me/{temp.U_NAME}?start=shortlink_{grp_id}_{db_key}")
         btn = [[
             InlineKeyboardButton("♻️ Get File ♻️", url=link)
         ],[
@@ -236,7 +242,7 @@ async def start(client, message):
     )
     if IS_STREAM:
         btn = [[
-            InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{file_id}")
+            InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
         ],[
             InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
             InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
@@ -254,13 +260,13 @@ async def start(client, message):
     try:
         vp = await client.send_cached_media(
             chat_id=message.from_user.id,
-            file_id=file_id,
+            file_id=real_file_id,
             caption=f_caption,
             protect_content=False,
             reply_markup=InlineKeyboardMarkup(btn)
         )
     except (MediaEmpty, BadRequest):
-        await message.reply_text("⚠️ This file has been deleted from Telegram servers.")
+        await message.reply_text("⚠️ This file is deleted from Telegram server.")
         return
     except Exception as e:
         await message.reply_text(f"Error: {e}")
@@ -270,7 +276,7 @@ async def start(client, message):
     msg = await vp.reply(f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
     await asyncio.sleep(PM_FILE_DELETE_TIME)
     btns = [[
-        InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ', callback_data=f"get_del_file#{grp_id}#{file_id}")
+        InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ', callback_data=f"get_del_file#{grp_id}#{db_key}")
     ]]
     await msg.delete()
     await vp.delete()
@@ -421,13 +427,38 @@ async def delete_file(bot, message):
         query = message.text.split(" ", 1)[1]
     except:
         return await message.reply_text("Command Incomplete!\nUsage: /delete query")
-    btn = [[
-        InlineKeyboardButton("YES", callback_data=f"delete_{query}")
-    ],[
-        InlineKeyboardButton("CLOSE", callback_data="close_data")
-    ]]
-    await message.reply_text(f"Do you want to delete all: {query} ?", reply_markup=InlineKeyboardMarkup(btn))
- 
+    
+    # MISTAKE FIXED: delete_files now works properly with new regex
+    deleted = await delete_files(query)
+    
+    await message.reply_text(f"Deleted {deleted} files matching query: {query}")
+
+# =========================================================
+# NEW: DELETE ALL COMMAND
+# =========================================================
+@Client.on_message(filters.command('delete_all') & filters.user(ADMINS))
+async def delete_all_index(bot, message):
+    await message.reply_text(
+        '<b>⚠️ Warning:</b> This will delete <b>ALL</b> indexed files from the database.\n\nDo you want to continue?',
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton('YES (Delete All)', callback_data='delete_all_confirm')],
+            [InlineKeyboardButton('CANCEL', callback_data='close_data')]
+        ])
+    )
+
+@Client.on_callback_query(filters.regex(r'^delete_all_confirm$'))
+async def delete_all_cb(bot, query):
+    if query.from_user.id not in ADMINS:
+        return await query.answer("You are not authorized!", show_alert=True)
+        
+    await query.message.edit("<b>🗑 Deleting all files... This may take time.</b>")
+    
+    try:
+        total = await delete_all_files()
+        await query.message.edit(f"<b>✅ Successfully deleted {total} files from the database.</b>")
+    except Exception as e:
+        await query.message.edit(f"Error: {e}")
+# =========================================================
 
 
 @Client.on_message(filters.command('img_2_link'))
