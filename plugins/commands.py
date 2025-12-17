@@ -8,10 +8,9 @@ from datetime import datetime, timedelta
 
 from hydrogram import Client, filters, enums
 from hydrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from hydrogram.errors import MediaEmpty, BadRequest, FloodWait
+from hydrogram.errors import MediaEmpty, BadRequest, FloodWait, MessageNotModified
 
 from Script import script
-# MISTAKE FIXED: Added delete_all_files to import
 from database.ia_filterdb import db_count_documents, second_db_count_documents, get_file_details, delete_files, delete_all_files
 from database.users_chats_db import db
 from info import (
@@ -450,8 +449,12 @@ async def delete_all_index(bot, message):
 async def delete_all_cb(bot, query):
     if query.from_user.id not in ADMINS:
         return await query.answer("You are not authorized!", show_alert=True)
-        
-    await query.message.edit("<b>🗑 Deleting all files... This may take time.</b>")
+    
+    # FIX: Added try-except for MessageNotModified
+    try:
+        await query.message.edit("<b>🗑 Deleting all files... This may take time.</b>")
+    except MessageNotModified:
+        pass
     
     try:
         total = await delete_all_files()
@@ -650,4 +653,3 @@ async def off_pm_search(bot, message):
 async def on_pm_search(bot, message):
     db.update_bot_sttgs('PM_SEARCH', True)
     await message.reply('Successfully turned on pm search for all users')
-
