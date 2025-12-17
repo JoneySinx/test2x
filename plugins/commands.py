@@ -28,21 +28,15 @@ from utils import (
 # --- Background Task for Auto Deletion ---
 async def delete_after_delay(message, delay, file_ids=None, original_msg=None, grp_id=None, db_key=None):
     await asyncio.sleep(delay)
-    
-    # Delete the files
     if file_ids:
         try:
             await message.chat.delete_messages(file_ids)
         except:
             pass
-            
-    # Delete the "Note: This message will be deleted" warning
     try:
         await message.delete()
     except:
         pass
-
-    # If original message exists (the one with the file link), update it
     if original_msg and grp_id and db_key:
         btns = [[
             InlineKeyboardButton('ɢᴇᴛ ғɪʟᴇ ᴀɢᴀɪɴ', callback_data=f"get_del_file#{grp_id}#{db_key}")
@@ -52,10 +46,6 @@ async def delete_after_delay(message, delay, file_ids=None, original_msg=None, g
         except:
             pass
 # -----------------------------------------
-
-async def del_stk(s):
-    await asyncio.sleep(3)
-    await s.delete()
 
 @Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
@@ -74,13 +64,14 @@ async def start(client, message):
         await message.reply(text=f"<b>ʜᴇʏ {user}, <i>{wish}</i>\nʜᴏᴡ ᴄᴀɴ ɪ ʜᴇʟᴘ ʏᴏᴜ??</b>", reply_markup=InlineKeyboardMarkup(btn))
         return 
         
-    try:
-        await message.react(emoji=random.choice(REACTIONS), big=True)
-    except:
-        pass
-
-    d = await client.send_sticker(message.chat.id, random.choice(STICKERS))
-    asyncio.create_task(del_stk(d))
+    # --- STICKER REMOVED HERE ---
+    # try:
+    #     await message.react(emoji=random.choice(REACTIONS), big=True)
+    # except:
+    #     pass
+    # d = await client.send_sticker(message.chat.id, random.choice(STICKERS))
+    # asyncio.create_task(del_stk(d))
+    # ---------------------------
 
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
@@ -195,26 +186,18 @@ async def start(client, message):
                 file_caption=file['caption']
             )      
             
-            # Using real file_id for streaming and downloading
             real_file_id = file.get('file_id') or file['_id']
 
-            # --- SMART BUTTON CHECK ---
-            if IS_STREAM and len(f"stream#{real_file_id}") < 64:
-                btn = [[
-                    InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
-                ],[
-                    InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
-                    InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
-                ],[
-                    InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
-                ]]
-            else:
-                btn = [[
-                    InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
-                    InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
-                ],[
-                    InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
-                ]]
+            # --- BUTTON LOGIC (UPDATES/SUPPORT REMOVED) ---
+            btn = []
+            if IS_STREAM:
+                if len(f"stream#{real_file_id}") < 64:
+                    btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")])
+                else:
+                    btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", url=f"{URL}watch/{real_file_id}")])
+            
+            btn.append([InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')])
+            # -----------------------------
 
             try:
                 msg = await client.send_cached_media(
@@ -233,10 +216,7 @@ async def start(client, message):
 
         time = get_readable_time(PM_FILE_DELETE_TIME)
         vp = await message.reply(f"Nᴏᴛᴇ: Tʜɪs ғɪʟᴇs ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇs ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
-        
-        # --- FIX: USE BACKGROUND TASK FOR DELETE ---
         asyncio.create_task(delete_after_delay(vp, PM_FILE_DELETE_TIME, file_ids=file_ids + [total_files.id]))
-        # ------------------------------------------
         return
 
     type_, grp_id, db_key = mc.split("_", 2)
@@ -246,7 +226,6 @@ async def start(client, message):
     files = files_
     settings = await get_settings(int(grp_id))
     
-    # Correct file ID handling
     real_file_id = files.get('file_id') or files['_id']
 
     if type_ != 'shortlink' and settings['shortlink'] and not await is_premium(message.from_user.id, client):
@@ -266,23 +245,16 @@ async def start(client, message):
         file_caption=files['caption']
     )
     
-    # --- SMART BUTTON CHECK ---
-    if IS_STREAM and len(f"stream#{real_file_id}") < 64:
-        btn = [[
-            InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
-        ],[
-            InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
-            InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
-        ],[
-            InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
-        ]]
-    else:
-        btn = [[
-            InlineKeyboardButton('⚡️ ᴜᴘᴅᴀᴛᴇs', url=UPDATES_LINK),
-            InlineKeyboardButton('💡 ꜱᴜᴘᴘᴏʀᴛ', url=SUPPORT_LINK)
-        ],[
-            InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')
-        ]]
+    # --- BUTTON LOGIC (UPDATES/SUPPORT REMOVED) ---
+    btn = []
+    if IS_STREAM:
+        if len(f"stream#{real_file_id}") < 64:
+            btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")])
+        else:
+            btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", url=f"{URL}watch/{real_file_id}")])
+    
+    btn.append([InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')])
+    # -----------------------------
     
     try:
         vp = await client.send_cached_media(
@@ -299,11 +271,9 @@ async def start(client, message):
     time = get_readable_time(PM_FILE_DELETE_TIME)
     msg = await vp.reply(f"Nᴏᴛᴇ: Tʜɪs ᴍᴇssᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇ ɪɴ {time} ᴛᴏ ᴀᴠᴏɪᴅ ᴄᴏᴘʏʀɪɢʜᴛs. Sᴀᴠᴇ ᴛʜᴇ ғɪʟᴇ ᴛᴏ sᴏᴍᴇᴡʜᴇʀᴇ ᴇʟsᴇ")
     
-    # --- FIX: USE BACKGROUND TASK FOR DELETE ---
     asyncio.create_task(delete_after_delay(msg, PM_FILE_DELETE_TIME, file_ids=None, original_msg=vp, grp_id=grp_id, db_key=db_key))
-    # ------------------------------------------
 
-
+# ... (बाकी का कोड वही रहेगा) ...
 @Client.on_message(filters.command('link'))
 async def link(bot, message):
     msg = message.reply_to_message
