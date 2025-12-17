@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from hydrogram import Client, filters, enums
 from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
-from hydrogram.errors import ListenerTimeout
+from hydrogram.errors import ListenerTimeout, MessageNotModified, QueryIdInvalid
 from hydrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 
 # आपके अन्य फाइल्स से इम्पोर्ट्स
@@ -199,7 +199,8 @@ async def next_page(bot, query):
     elif off_set is None:
         btn.append(
             [InlineKeyboardButton(f"{math.ceil(int(offset) / MAX_BTN) + 1}/{math.ceil(total / MAX_BTN)}", callback_data="buttons"),
-             InlineKeyboardButton("ɴᴇxᴛ »", callback_data=f"next_{req}_{key}_{n_offset}")])
+             InlineKeyboardButton("ɴᴇxᴛ »", callback_data=f"next_{req}_{key}_{n_offset}")]
+        )
     else:
         btn.append(
             [
@@ -211,7 +212,10 @@ async def next_page(bot, query):
     btn.append(
         [InlineKeyboardButton('🤑 Buy Premium', url=f"https://t.me/{temp.U_NAME}?start=premium")]
     )
-    await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    try:
+        await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^languages"))
 async def languages_(client: Client, query: CallbackQuery):
@@ -224,7 +228,10 @@ async def languages_(client: Client, query: CallbackQuery):
         for i in range(0, len(LANGUAGES)-1, 2)
     ]
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])  
-    await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ʟᴀɴɢᴜᴀɢᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ 👇</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    try:
+        await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ʟᴀɴɢᴜᴀɢᴇ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ 👇</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^quality"))
 async def quality(client: Client, query: CallbackQuery):
@@ -237,7 +244,10 @@ async def quality(client: Client, query: CallbackQuery):
         for i in range(0, len(QUALITY)-1, 2)
     ]
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])  
-    await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ǫᴜᴀʟɪᴛʏ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ 👇</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    try:
+        await query.message.edit_text("<b>ɪɴ ᴡʜɪᴄʜ ǫᴜᴀʟɪᴛʏ ᴅᴏ ʏᴏᴜ ᴡᴀɴᴛ, sᴇʟᴇᴄᴛ ʜᴇʀᴇ 👇</b>", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn))
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^lang_search"))
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
@@ -286,7 +296,10 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
              InlineKeyboardButton(text="ɴᴇxᴛ »", callback_data=f"lang_next#{req}#{key}#{lang}#{l_offset}#{offset}")]
         )
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
-    await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+    try:
+        await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^lang_next"))
 async def lang_next_page(bot, query):
@@ -355,7 +368,10 @@ async def lang_next_page(bot, query):
              InlineKeyboardButton("ɴᴇxᴛ »", callback_data=f"lang_next#{req}#{key}#{lang}#{n_offset}#{offset}")]
         )
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
-    await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    try:
+        await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^qual_search"))
 async def quality_search(client: Client, query: CallbackQuery):
@@ -398,7 +414,10 @@ async def quality_search(client: Client, query: CallbackQuery):
              InlineKeyboardButton(text="ɴᴇxᴛ »", callback_data=f"qual_next#{req}#{key}#{qual}#{l_offset}#{offset}")]
         )
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
-    await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+    try:
+        await query.message.edit_text(cap + files_link + del_msg, disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup(btn), parse_mode=enums.ParseMode.HTML)
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^qual_next"))
 async def quality_next_page(bot, query):
@@ -465,7 +484,10 @@ async def quality_next_page(bot, query):
              InlineKeyboardButton("ɴᴇxᴛ »", callback_data=f"qual_next#{req}#{key}#{qual}#{n_offset}#{offset}")]
         )
     btn.append([InlineKeyboardButton(text="⪻ ʙᴀᴄᴋ ᴛᴏ ᴍᴀɪɴ ᴘᴀɢᴇ", callback_data=f"next_{req}_{key}_{offset}")])
-    await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    try:
+        await query.message.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    except MessageNotModified:
+        pass
 
 @Client.on_callback_query(filters.regex(r"^spolling"))
 async def advantage_spoll_choker(bot, query):
@@ -514,20 +536,29 @@ async def cb_handler(client: Client, query: CallbackQuery):
             user = query.message.from_user.id
         if int(user) != 0 and query.from_user.id != int(user):
             return await query.answer(f"Hello {query.from_user.first_name},\nDon't Click Other Results!", show_alert=True)
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
+        try:
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{query.message.chat.id}_{file_id}")
+        except QueryIdInvalid:
+            pass
 
     elif query.data.startswith("get_del_file"):
         ident, group_id, file_id = query.data.split("#")
         if not await is_premium(query.from_user.id, client):
             return await query.answer(f"Only for premium users, use /plan for details", show_alert=True)
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{group_id}_{file_id}")
+        try:
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start=file_{group_id}_{file_id}")
+        except QueryIdInvalid:
+            pass
         await query.message.delete()
 
     elif query.data.startswith("get_del_send_all_files"):
         ident, group_id, key = query.data.split("#")
         if not await is_premium(query.from_user.id, client):
             return await query.answer(f"Only for premium users, use /plan for details", show_alert=True)
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start=all_{group_id}_{key}")
+        try:
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start=all_{group_id}_{key}")
+        except QueryIdInvalid:
+            pass
         await query.message.delete()
         
     elif query.data.startswith("stream"):
@@ -560,7 +591,10 @@ async def cb_handler(client: Client, query: CallbackQuery):
             )
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(btn))
             return
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start={mc}")
+        try:
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start={mc}")
+        except QueryIdInvalid:
+            pass
         await query.message.delete()
 
     elif query.data == "buttons":
@@ -991,8 +1025,11 @@ async def cb_handler(client: Client, query: CallbackQuery):
         files = temp.FILES.get(key)
         if not files:
             await query.answer(f"Hello {query.from_user.first_name},\nSend New Request Again!", show_alert=True)
-            return        
-        await query.answer(url=f"https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}")
+            return
+        try:
+            await query.answer(url=f"https://t.me/{temp.U_NAME}?start=all_{query.message.chat.id}_{key}")
+        except QueryIdInvalid:
+            pass
 
     elif query.data == "unmute_all_members":
         if not await is_check_admin(client, query.message.chat.id, query.from_user.id):
@@ -1090,7 +1127,10 @@ async def auto_filter(client, msg, s, spoll=False):
             if settings["spell_check"]:
                 await advantage_spell_chok(message, s)
             else:
-                await s.edit(f'I cant find {search}')
+                try:
+                    await s.edit(f'I cant find {search}')
+                except MessageNotModified:
+                    pass
             return
     else:
         settings = await get_settings(msg.message.chat.id)
@@ -1217,7 +1257,10 @@ async def auto_filter(client, msg, s, spoll=False):
                 except:
                     pass
     else:
-        k = await s.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+        try:
+            k = await s.edit_text(cap + files_link + del_msg, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+        except MessageNotModified:
+            pass
         if settings["auto_delete"]:
             await asyncio.sleep(DELETE_TIME)
             await k.delete()
