@@ -64,14 +64,14 @@ async def start(client, message):
         await message.reply(text=f"<b>ʜᴇʏ {user}, <i>{wish}</i>\nʜᴏᴡ ᴄᴀɴ ɪ ʜᴇʟᴘ ʏᴏᴜ??</b>", reply_markup=InlineKeyboardMarkup(btn))
         return 
         
-    # --- STICKER REMOVED HERE ---
+    # --- STICKER REMOVED (Commented Out) ---
     # try:
     #     await message.react(emoji=random.choice(REACTIONS), big=True)
     # except:
     #     pass
     # d = await client.send_sticker(message.chat.id, random.choice(STICKERS))
     # asyncio.create_task(del_stk(d))
-    # ---------------------------
+    # ---------------------------------------
 
     if not await db.is_user_exist(message.from_user.id):
         await db.add_user(message.from_user.id, message.from_user.first_name)
@@ -188,14 +188,17 @@ async def start(client, message):
             
             real_file_id = file.get('file_id') or file['_id']
 
-            # --- BUTTON LOGIC (UPDATES/SUPPORT REMOVED) ---
+            # --- BUTTON LOGIC (CLEANED) ---
             btn = []
             if IS_STREAM:
+                # Agar ID choti hai to Fast Button (Trigger for 2 buttons)
                 if len(f"stream#{real_file_id}") < 64:
                     btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")])
                 else:
+                    # Fallback URL (agar ID badi hai)
                     btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", url=f"{URL}watch/{real_file_id}")])
             
+            # Close button always
             btn.append([InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')])
             # -----------------------------
 
@@ -245,12 +248,14 @@ async def start(client, message):
         file_caption=files['caption']
     )
     
-    # --- BUTTON LOGIC (UPDATES/SUPPORT REMOVED) ---
+    # --- BUTTON LOGIC (CLEANED) ---
     btn = []
     if IS_STREAM:
         if len(f"stream#{real_file_id}") < 64:
+            # This callback triggers the logic in pm_filter.py to show 2 buttons
             btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")])
         else:
+            # Fallback URL
             btn.append([InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", url=f"{URL}watch/{real_file_id}")])
     
     btn.append([InlineKeyboardButton('⁉️ ᴄʟᴏsᴇ ⁉️', callback_data='close_data')])
@@ -273,7 +278,7 @@ async def start(client, message):
     
     asyncio.create_task(delete_after_delay(msg, PM_FILE_DELETE_TIME, file_ids=None, original_msg=vp, grp_id=grp_id, db_key=db_key))
 
-# ... (बाकी का कोड वही रहेगा) ...
+# ... बाकी का कोड सेम रहेगा (prm_list, stats, etc) ...
 @Client.on_message(filters.command('link'))
 async def link(bot, message):
     msg = message.reply_to_message
