@@ -27,8 +27,16 @@ logging.basicConfig(
 logging.getLogger('hydrogram').setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# Install uvloop for better performance
+# Install uvloop
 uvloop.install()
+
+# =========================================================
+# FIX: Manually create and set the Event Loop here
+# This fixes the "There is no current event loop" error
+# =========================================================
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+# =========================================================
 
 class Bot(Client):
     def __init__(self):
@@ -54,12 +62,14 @@ class Bot(Client):
             try:
                 with open("restart.txt") as file:
                     content = file.read().split()
-                    chat_id, msg_id = int(content[0]), int(content[1])
-                await self.edit_message_text(chat_id=chat_id, message_id=msg_id, text='Restarted Successfully!')
+                    if len(content) >= 2:
+                        chat_id, msg_id = int(content[0]), int(content[1])
+                        await self.edit_message_text(chat_id=chat_id, message_id=msg_id, text='Restarted Successfully!')
             except Exception as e:
                 logger.error(f"Failed to edit restart message: {e}")
             finally:
-                os.remove('restart.txt')
+                if os.path.exists('restart.txt'):
+                    os.remove('restart.txt')
 
         temp.BOT = self
         me = await self.get_me()
@@ -79,7 +89,7 @@ class Bot(Client):
             await self.send_message(chat_id=LOG_CHANNEL, text=f"<b>{me.mention} Restarted! 🤖</b>")
         except Exception:
             logger.error("Make sure bot admin is in LOG_CHANNEL, exiting now")
-            # exit() # Commented out exit to prevent crash if log channel issue occurs
+            # exit() 
         
         logger.info(f"@{me.username} is started now ✓")
 
@@ -96,8 +106,11 @@ class Bot(Client):
                 return
             
             # Fetch messages in batch
-            messages = await self.get_messages(chat_id, list(range(current, current+new_diff+1)))
-            
+            try:
+                messages = await self.get_messages(chat_id, list(range(current, current+new_diff+1)))
+            except Exception:
+                return
+
             for message in messages:
                 # IMPORTANT: Check if message exists (not None/Empty) before yielding
                 if message:
@@ -107,5 +120,6 @@ class Bot(Client):
                     # If message is deleted/empty, still increment current to move forward
                     current += 1
 
+# Initialize Bot
 app = Bot()
 app.run()
