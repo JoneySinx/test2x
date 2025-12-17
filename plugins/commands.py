@@ -188,6 +188,8 @@ async def start(client, message):
                 ]]
 
             try:
+                # DEBUG PRINT FOR ALL FILES
+                print(f"⚠️ DEBUG (ALL): Sending {real_file_id}")
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
                     file_id=real_file_id,
@@ -196,10 +198,11 @@ async def start(client, message):
                     reply_markup=InlineKeyboardMarkup(btn)
                 )
                 file_ids.append(msg.id)
-            except (MediaEmpty, BadRequest):
+            except (MediaEmpty, BadRequest) as e:
+                print(f"❌ ERROR (ALL): {e}")
                 continue
             except Exception as e:
-                print(f"Error sending file: {e}")
+                print(f"❌ ERROR (ALL): {e}")
                 continue
 
         time = get_readable_time(PM_FILE_DELETE_TIME)
@@ -257,6 +260,9 @@ async def start(client, message):
         ]]
     
     try:
+        # DEBUG CHECK: Logs mein ID print karega
+        print(f"🛠 DEBUG (SINGLE): Trying to send File ID: {real_file_id}")
+        
         vp = await client.send_cached_media(
             chat_id=message.from_user.id,
             file_id=real_file_id,
@@ -264,11 +270,10 @@ async def start(client, message):
             protect_content=False,
             reply_markup=InlineKeyboardMarkup(btn)
         )
-    except (MediaEmpty, BadRequest):
-        await message.reply_text("⚠️ This file is deleted from Telegram server.")
-        return
     except Exception as e:
-        await message.reply_text(f"Error: {e}")
+        # Asli error user ko dikhayega
+        print(f"❌ SEND ERROR: {e}")
+        await message.reply_text(f"🚨 **ERROR DETAILS:**\n`{e}`\n\n**File ID Used:**\n`{real_file_id}`")
         return
 
     time = get_readable_time(PM_FILE_DELETE_TIME)
@@ -461,6 +466,27 @@ async def delete_all_cb(bot, query):
         await query.message.edit(f"<b>✅ Successfully deleted {total} files from the database.</b>")
     except Exception as e:
         await query.message.edit(f"Error: {e}")
+# =========================================================
+
+
+# =========================================================
+# NEW: WIPE DATA COMMAND (Database Force Clean)
+# =========================================================
+@Client.on_message(filters.command('wipe_data') & filters.user(ADMINS))
+async def wipe_database(bot, message):
+    await message.reply_text("🗑 **Wiping Database... Please wait.**")
+    
+    try:
+        # यह सीधा database collection को drop कर देगा
+        # Note: 'db' here refers to users_chats_db. To wipe files, 
+        # we rely on delete_all_files logic usually, but here is a backup
+        
+        # If your files are in a different collection, ensure delete_all_files handles it
+        deleted = await delete_all_files()
+        
+        await message.reply_text(f"✅ **Database Wiped Successfully!**\nDeleted: {deleted} files.")
+    except Exception as e:
+        await message.reply_text(f"❌ Error: {e}")
 # =========================================================
 
 
