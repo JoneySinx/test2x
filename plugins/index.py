@@ -101,7 +101,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
                 
                 current += 1
                 
-                # Changed from 30 to 200 to avoid FloodWait limits
+                # Update status every 200 messages
                 if current % 200 == 0:
                     btn = [[
                         InlineKeyboardButton('CANCEL', callback_data=f'index#cancel#{chat}#{lst_msg_id}#{skip}')
@@ -129,7 +129,7 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
                     continue
                 
                 # Check if file_name exists to avoid NoneType error
-                if not media.file_name:
+                if not getattr(media, 'file_name', None):
                     unsupported += 1
                     continue
 
@@ -138,7 +138,6 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
                     continue
                 
                 media.caption = message.caption
-                # Regex can be adjusted if needed, currently replaces special chars with space
                 file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
                 
                 sts = await save_file(media)
@@ -150,7 +149,22 @@ async def index_files_to_db(lst_msg_id, chat, msg, bot, skip):
                     errors += 1
                     
         except Exception as e:
-            await msg.reply(f'Index canceled due to Error - {e}')
+            try:
+                await msg.reply(f'Index canceled due to Error - {e}')
+            except:
+                pass
         else:
             time_taken = get_readable_time(time.time()-start_time)
-            await msg.edit(f'Succesfully saved <code>{total_files}</code> to Database!\nCompleted in {time_taken}\n\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>\nUnsupported Media: <code>{unsupported}</code>\nErrors Occurred: <code>{errors}</code>\nBad Files Ignored: <code>{badfiles}</code>')
+            # FIX: Added try-except here to prevent crash on final message
+            try:
+                await msg.edit(f'Succesfully saved <code>{total_files}</code> to Database!\nCompleted in {time_taken}\n\nDuplicate Files Skipped: <code>{duplicate}</code>\nDeleted Messages Skipped: <code>{deleted}</code>\nNon-Media messages skipped: <code>{no_media + unsupported}</code>\nUnsupported Media: <code>{unsupported}</code>\nErrors Occurred: <code>{errors}</code>\nBad Files Ignored: <code>{badfiles}</code>')
+            except Exception as e:
+                print(f"Error sending final index message: {e}")
+                # Fallback: try sending a new message if edit fails
+                try:
+                    await bot.send_message(
+                        chat_id=msg.chat.id, 
+                        text=f'Succesfully saved <code>{total_files}</code> to Database!\nCompleted in {time_taken}\n\n(Error editing status message, but indexing is complete.)'
+                    )
+                except:
+                    pass
