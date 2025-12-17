@@ -167,10 +167,13 @@ async def start(client, message):
                 file_caption=file['caption']
             )      
             
-            # Using real file_id for streaming and downloading
+            # Using real file_id
             real_file_id = file.get('file_id') or file['_id']
 
-            if IS_STREAM:
+            # --- SMART BUTTON CHECK (FIX FOR CRASH) ---
+            # Agar file ID choti hai (limit ke andar) toh hi stream button dikhega
+            # Warna bina button ke file bhejega taaki error na aaye
+            if IS_STREAM and len(f"stream#{real_file_id}") < 64:
                 btn = [[
                     InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
                 ],[
@@ -188,8 +191,6 @@ async def start(client, message):
                 ]]
 
             try:
-                # DEBUG PRINT FOR ALL FILES
-                print(f"⚠️ DEBUG (ALL): Sending {real_file_id}")
                 msg = await client.send_cached_media(
                     chat_id=message.from_user.id,
                     file_id=real_file_id,
@@ -242,7 +243,9 @@ async def start(client, message):
         file_size = get_size(files['file_size']),
         file_caption=files['caption']
     )
-    if IS_STREAM:
+    
+    # --- SMART BUTTON CHECK (FIX FOR CRASH) ---
+    if IS_STREAM and len(f"stream#{real_file_id}") < 64:
         btn = [[
             InlineKeyboardButton("✛ ᴡᴀᴛᴄʜ & ᴅᴏᴡɴʟᴏᴀᴅ ✛", callback_data=f"stream#{real_file_id}")
         ],[
@@ -260,9 +263,6 @@ async def start(client, message):
         ]]
     
     try:
-        # DEBUG CHECK: Logs mein ID print karega
-        print(f"🛠 DEBUG (SINGLE): Trying to send File ID: {real_file_id}")
-        
         vp = await client.send_cached_media(
             chat_id=message.from_user.id,
             file_id=real_file_id,
@@ -271,9 +271,8 @@ async def start(client, message):
             reply_markup=InlineKeyboardMarkup(btn)
         )
     except Exception as e:
-        # Asli error user ko dikhayega
-        print(f"❌ SEND ERROR: {e}")
-        await message.reply_text(f"🚨 **ERROR DETAILS:**\n`{e}`\n\n**File ID Used:**\n`{real_file_id}`")
+        # Agar ab bhi error aaye toh user ko bataye
+        await message.reply_text(f"⚠️ Error sending file: {e}")
         return
 
     time = get_readable_time(PM_FILE_DELETE_TIME)
@@ -432,7 +431,6 @@ async def delete_file(bot, message):
     except:
         return await message.reply_text("Command Incomplete!\nUsage: /delete query")
     
-    # MISTAKE FIXED: delete_files now works properly with new regex
     deleted = await delete_files(query)
     
     await message.reply_text(f"Deleted {deleted} files matching query: {query}")
@@ -455,7 +453,6 @@ async def delete_all_cb(bot, query):
     if query.from_user.id not in ADMINS:
         return await query.answer("You are not authorized!", show_alert=True)
     
-    # FIX: Added try-except for MessageNotModified
     try:
         await query.message.edit("<b>🗑 Deleting all files... This may take time.</b>")
     except MessageNotModified:
@@ -477,13 +474,7 @@ async def wipe_database(bot, message):
     await message.reply_text("🗑 **Wiping Database... Please wait.**")
     
     try:
-        # यह सीधा database collection को drop कर देगा
-        # Note: 'db' here refers to users_chats_db. To wipe files, 
-        # we rely on delete_all_files logic usually, but here is a backup
-        
-        # If your files are in a different collection, ensure delete_all_files handles it
         deleted = await delete_all_files()
-        
         await message.reply_text(f"✅ **Database Wiped Successfully!**\nDeleted: {deleted} files.")
     except Exception as e:
         await message.reply_text(f"❌ Error: {e}")
